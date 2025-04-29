@@ -126,7 +126,7 @@
                 }  
 
                 // 读取文件的第一行内容  
-                using (var reader = new StreamReader(path, System.Text.Encoding.UTF8))  
+                using (var reader = new StreamReader(path, System.Text.Encoding.UTF8)) // 使用纯文本模式的 UTF-8
                 {  
                     var line = await reader.ReadLineAsync();  
                     _firstLine = line ?? string.Empty;
@@ -164,7 +164,7 @@
 
                 // 读取文件内容并匹配正则表达式  
                 string fileContent;  
-                using (var reader = new StreamReader(path, System.Text.Encoding.UTF8))  
+                using (var reader = new StreamReader(path, System.Text.Encoding.UTF8)) // 使用纯文本模式的 UTF-8
                 {  
                     fileContent = await reader.ReadToEndAsync();  
                 }  
@@ -305,12 +305,12 @@
             // 生成新的文件名
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             var newFileName = $"changed_{timestamp}.bkp";
-            var newFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpDownload", newFileName);
+            var newFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpChanged", newFileName);
 
             // 确保目录存在
-            Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpDownload"));
+            Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpChanged"));
 
-            // 保存修改后的文件
+            // 保存修改后的文件，使用纯文本模式的 UTF-8
             await using (var writer = new StreamWriter(newFilePath, false, System.Text.Encoding.UTF8))
             {
                 await writer.WriteAsync(fileContent);
