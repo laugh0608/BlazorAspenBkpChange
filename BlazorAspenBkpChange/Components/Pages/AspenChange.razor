@@ -80,7 +80,7 @@
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)  
     {  
-        // 清空之前的消息、第一行内容和匹配内容  
+        // 清空之前的状态
         _message = string.Empty;  
         _firstLine = string.Empty;  
         _formattedContent = string.Empty;  
@@ -164,7 +164,7 @@
 
                 // 读取文件内容并匹配正则表达式  
                 string fileContent;  
-                using (var reader = new StreamReader(path, System.Text.Encoding.UTF8)) // 使用纯文本模式的 UTF-8
+                using (var reader = new StreamReader(path, new System.Text.UTF8Encoding(false))) // 使用 UTF-8 无 BOM
                 {  
                     fileContent = await reader.ReadToEndAsync();  
                 }  
@@ -253,7 +253,7 @@
         try
         {
             // 确定目标版本对应的 _aspenVersion 值
-            string targetAspenVersion = _selectedVersion switch
+            string? targetAspenVersion = _selectedVersion switch
             {
                 "V12" => "38.0",
                 "V11" => "37.0",
@@ -269,7 +269,7 @@
 
             // 读取上传文件内容
             string fileContent;
-            using (var reader = new StreamReader(_uploadedFilePath, System.Text.Encoding.UTF8))
+            using (var reader = new StreamReader(_uploadedFilePath, new System.Text.UTF8Encoding(false)))
             {
                 fileContent = await reader.ReadToEndAsync();
             }
@@ -310,8 +310,8 @@
             // 确保目录存在
             Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpChanged"));
 
-            // 保存修改后的文件，使用纯文本模式的 UTF-8
-            await using (var writer = new StreamWriter(newFilePath, false, System.Text.Encoding.UTF8))
+            // 保存修改后的文件，使用 UTF-8 无 BOM
+            await using (var writer = new StreamWriter(newFilePath, false, new System.Text.UTF8Encoding(false)))
             {
                 await writer.WriteAsync(fileContent);
             }
