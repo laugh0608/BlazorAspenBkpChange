@@ -252,7 +252,7 @@
 
         try
         {
-            // 确定目标版本对应的 _aspenVersion 值
+            // 确定目标版本对应的 _aspenVersion 和 APV 值
             string? targetAspenVersion = _selectedVersion switch
             {
                 "V12" => "38.0",
@@ -261,7 +261,15 @@
                 _ => null
             };
 
-            if (string.IsNullOrEmpty(targetAspenVersion))
+            string? targetApvField = _selectedVersion switch
+            {
+                "V12" => "APV120",
+                "V11" => "APV110",
+                "V9" => "APV090",
+                _ => null
+            };
+
+            if (string.IsNullOrEmpty(targetAspenVersion) || string.IsNullOrEmpty(targetApvField))
             {
                 _message = "无效的目标版本选择。";
                 return;
@@ -274,7 +282,7 @@
                 fileContent = await reader.ReadToEndAsync();
             }
 
-            // 第一步：匹配 _aspenVersion 的值
+            // 匹配 _aspenVersion 的值
             var versionMatch = System.Text.RegularExpressions.Regex.Match(
                 fileContent,
                 @"DSET\s+RUN-STATUS\s+VERS\s+@VERS\s*\(\s*""([^""]+)""",
@@ -290,7 +298,23 @@
             string currentAspenVersion = versionMatch.Groups[1].Value; // 提取当前 _aspenVersion 值
             Console.WriteLine($"匹配到的 _aspenVersion 值: {currentAspenVersion}");
 
-            // 第二步：在全文中匹配并修改 _aspenVersion 值
+            // 匹配 APV 字段
+            string? currentApvField = _aspenVersion switch
+            {
+                "40.0" => "APV140",
+                "38.0" => "APV120",
+                "37.0" => "APV110",
+                "36.0" => "APV090",
+                _ => null
+            };
+
+            if (string.IsNullOrEmpty(currentApvField))
+            {
+                _message = "未找到对应的 APV 字段，无法进行修改。";
+                return;
+            }
+
+            // 修改 _aspenVersion 和 APV 字段
             int matchCount = 0;
             fileContent = System.Text.RegularExpressions.Regex.Replace(
                 fileContent,
@@ -300,6 +324,17 @@
                     matchCount++;
                     return $"\"{targetAspenVersion}\""; // 替换为目标版本值
                 }
+            );
+
+            fileContent = System.Text.RegularExpressions.Regex.Replace(
+                fileContent,
+                $@"\b{currentApvField}\b", // 匹配全文中当前 APV 字段，考虑跨行
+                match =>
+                {
+                    matchCount++;
+                    return targetApvField; // 替换为目标 APV 字段
+                },
+                System.Text.RegularExpressions.RegexOptions.Singleline
             );
 
             // 生成新的文件名
