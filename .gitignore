@@ -3,6 +3,13 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# bkp file
+*/bkpUploads/
+*.bkp
+
+# IDEA
+.idea/
+
 # User-specific files
 *.rsuser
 *.suo

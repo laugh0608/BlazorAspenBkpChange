@@ -1,0 +1,356 @@
+﻿@page "/aspenChange"  
+@rendermode InteractiveServer  
+
+<PageTitle>AspenBkpChange</PageTitle>  
+
+<h2>BlazorAspenBkpChange</h2>  
+
+<p>请上传 bkp 文件开始进行版本转换。</p>  
+<p>仅支持高版本转换为低版本。</p>  
+
+@if (!string.IsNullOrEmpty(_message))  
+{  
+    <div class="alert alert-info">@_message</div>  
+}  
+
+<InputFile OnChange="HandleFileSelected" multiple />  
+
+@if (_uploadedFiles.Any())  
+{  
+    <h4>已上传文件:</h4>  
+    <ul>  
+        @foreach (var file in _uploadedFiles)  
+        {  
+            <li>@file</li>
+        }  
+    </ul>  
+}  
+
+@* @if (!string.IsNullOrEmpty(_firstLine))  
+{  
+    <h4>文件第一行内容:</h4>  
+    <p>@_firstLine</p>  
+} *@
+
+@if (!string.IsNullOrEmpty(_formattedContent))  
+{  
+    <h4>格式化匹配内容:</h4>  
+    <p>文件版本号: @_aspenVersion</p>  
+    <p>系统版本: @_systemVersion</p>  
+    <p>创建人: @_username</p>
+    <p>计算机名: @_computerName</p>
+    <p>创建时间: @_creatTime</p>
+    <p>使用的主数据库: @_mainDatabase</p>
+    <p>Aspen版本描述: @_aspenVersionDescription</p>
+
+    @if (_availableVersions.Any())
+    {
+        <label for="versionSelect">选择目标版本:</label>
+        <select id="versionSelect" @bind="_selectedVersion">
+            @foreach (var version in _availableVersions)
+            {
+                <option value="@version">@version</option>
+            }
+        </select>
+        <button @onclick="SaveModifiedFile">保存修改后的文件</button>
+    }
+    else
+    {
+        <p>无法转换为更低版本。</p>
+    }
+}  
+
+@code {  
+    private readonly List<string> _uploadedFiles = new List<string>();  
+    private string _message = string.Empty;  
+    private string _firstLine = string.Empty;  
+    private string _formattedContent = string.Empty;  
+    private string _aspenVersion = string.Empty;  
+    private string _systemVersion = string.Empty;  
+    private string _username = string.Empty;  
+    private string _computerName = string.Empty;
+    private string _creatTime = string.Empty;
+    private string _mainDatabase = string.Empty;
+    private string _aspenVersionDescription = string.Empty; // 新增字段，用于描述 Aspen 版本
+    private List<string> _availableVersions = new(); // 新增字段，用于存储下拉列表选项
+    private string _selectedVersion = string.Empty; // 新增字段，用于存储用户选择的版本
+    private string _uploadedFilePath = string.Empty; // 新增字段，用于存储上传文件的路径
+
+    private const long MaxFileSize = 10 * 1024 * 1024; // 10MB  
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)  
+    {  
+        // 清空之前的消息、第一行内容和匹配内容  
+        _message = string.Empty;  
+        _firstLine = string.Empty;  
+        _formattedContent = string.Empty;  
+        _aspenVersion = string.Empty;  
+        _systemVersion = string.Empty;  
+        _username = string.Empty;  
+        _computerName = string.Empty;
+        _creatTime = string.Empty;
+        _mainDatabase = string.Empty;
+        _aspenVersionDescription = string.Empty;
+        _availableVersions.Clear();
+        _selectedVersion = string.Empty;
+        _uploadedFiles.Clear();  
+        _uploadedFilePath = string.Empty;
+
+        // 获取上传的文件  
+        foreach (var file in e.GetMultipleFiles())  
+        {  
+            try  
+            {  
+                if (file.Size > MaxFileSize)  
+                {  
+                    _message = $"文件 {file.Name} 超过了 10MB 的大小限制。";  
+                    continue;  
+                }  
+
+                // 生成时间戳文件名  
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");  
+                var extension = Path.GetExtension(file.Name);  
+                var newFileName = $"uploaded_{timestamp}{extension}";  
+
+                // 指定保存路径（这里是 wwwroot/bkpUploads 文件夹）  
+                var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpUploads", newFileName);  
+                _uploadedFilePath = path; // 保存上传文件路径
+
+                // 确保目录存在  
+                Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpUploads"));  
+
+                // 保存文件  
+                await using (var stream = new FileStream(path, FileMode.Create))  
+                {  
+                    await file.OpenReadStream(MaxFileSize).CopyToAsync(stream);  
+                }  
+
+                // 读取文件的第一行内容  
+                using (var reader = new StreamReader(path, System.Text.Encoding.UTF8))  
+                {  
+                    var line = await reader.ReadLineAsync();  
+                    _firstLine = line ?? string.Empty;
+
+                    // 使用正则表达式匹配 DATETIME 后的时间
+                    var datetimeMatch = System.Text.RegularExpressions.Regex.Match(_firstLine, @"DATETIME\s+""(.*?)""");
+                    if (datetimeMatch.Success)
+                    {
+                        var datetimeString = datetimeMatch.Groups[1].Value;
+
+                        // 定义时间格式
+                        var format = "ddd MMM dd HH:mm:ss yyyy"; // 对应测试时间 "Sun Apr 20 21:38:14 2025"
+                        var culture = System.Globalization.CultureInfo.InvariantCulture;
+
+                        try
+                        {
+                            // 使用 ParseExact 解析时间
+                            var parsedDateTime = DateTime.ParseExact(datetimeString, format, culture);
+                            _creatTime = parsedDateTime.ToString("yyyy-MM-dd HH:mm:ss");
+                        }
+                        catch (FormatException)
+                        {
+                            _creatTime = "无法解析的时间格式";
+                        }
+                    }
+                    else
+                    {
+                        _creatTime = "未找到创建时间";
+                    }
+                }  
+
+                // 输出第一行内容和创建时间到控制台  
+                Console.WriteLine($"文件 {file.Name} 的第一行内容: {_firstLine}");  
+                Console.WriteLine($"文件 {file.Name} 的创建时间: {_creatTime}");  
+
+                // 读取文件内容并匹配正则表达式  
+                string fileContent;  
+                using (var reader = new StreamReader(path, System.Text.Encoding.UTF8))  
+                {  
+                    fileContent = await reader.ReadToEndAsync();  
+                }  
+
+                // 使用正则表达式匹配 DSET RUN-STATUS VERS @VERS，支持字段名和内容跨行
+                var match = System.Text.RegularExpressions.Regex.Match(
+                    fileContent,
+                    @"DSET\s+RUN-STATUS\s+VERS\s+@VERS\s*\((.*?)\)",
+                    System.Text.RegularExpressions.RegexOptions.Singleline // 启用单行模式
+                );
+                if (match.Success)  
+                {  
+                    var matchedString = match.Groups[1].Value;  
+                    var parts = matchedString.Split(' ', StringSplitOptions.RemoveEmptyEntries);  
+
+                    // 提取各部分内容  
+                    _aspenVersion = parts.Length > 0 ? parts[0].Trim('"') : "未知";  
+                    _systemVersion = parts.Length > 1 ? parts[1].Trim('"') : "未知";  
+                    _username = parts.Length > 3 ? parts[3].Trim('"') : "未知";  
+                    _computerName = parts.Length > 4 ? parts[4].Trim('"') : "未知";  
+
+                    // 根据 Aspen 版本设置描述和下拉列表选项
+                    UpdateAspenVersionDetails();
+
+                    // 设置格式化内容
+                    _formattedContent = "匹配成功！";
+
+                    // 输出到控制台  
+                    Console.WriteLine($"文件版本号: {_aspenVersion}");  
+                    Console.WriteLine($"系统版本: {_systemVersion}");  
+                    Console.WriteLine($"创建人: {_username}");  
+                    Console.WriteLine($"计算机名: {_computerName}");  
+                    Console.WriteLine($"Aspen版本描述: {_aspenVersionDescription}");  
+
+                    // 强制更新 UI
+                    StateHasChanged();
+                }  
+                else  
+                {  
+                    _formattedContent = "未找到匹配内容，请检查文件完整性。";  
+                }  
+
+                // 使用正则表达式匹配 DATABANKS FILE-SYM-NAM，支持字段名和内容跨行
+                var databaseMatch = System.Text.RegularExpressions.Regex.Match(
+                    fileContent,
+                    @"DATABANKS\s+FILE-SYM-NAM\s*=\s*\((.*?)\)",
+                    System.Text.RegularExpressions.RegexOptions.Singleline // 启用单行模式
+                );
+                if (databaseMatch.Success)  
+                {  
+                    _mainDatabase = databaseMatch.Groups[1].Value.Trim('"');  
+
+                    // 输出到控制台  
+                    Console.WriteLine($"使用的主数据库: {_mainDatabase}");  
+                }  
+                else  
+                {  
+                    _mainDatabase = "未找到主数据库信息";  
+                }  
+
+                // 将新文件名添加到列表中  
+                _uploadedFiles.Add(newFileName);  
+            }  
+            catch (Exception ex)  
+            {  
+                _message = $"文件 {file.Name} 上传失败: {ex.Message}";  
+            }  
+        }  
+
+        if (!string.IsNullOrEmpty(_message))  
+        {  
+            return;  
+        }  
+
+        _message = "文件上传成功！";  
+    }  
+
+    private async Task SaveModifiedFile()
+    {
+        if (string.IsNullOrEmpty(_uploadedFilePath) || string.IsNullOrEmpty(_selectedVersion))
+        {
+            _message = "请先上传文件并选择目标版本。";
+            return;
+        }
+
+        try
+        {
+            // 确定目标版本对应的 _aspenVersion 值
+            string targetAspenVersion = _selectedVersion switch
+            {
+                "V12" => "38.0",
+                "V11" => "37.0",
+                "V9" => "36.0",
+                _ => null
+            };
+
+            if (string.IsNullOrEmpty(targetAspenVersion))
+            {
+                _message = "无效的目标版本选择。";
+                return;
+            }
+
+            // 读取上传文件内容
+            string fileContent;
+            using (var reader = new StreamReader(_uploadedFilePath, System.Text.Encoding.UTF8))
+            {
+                fileContent = await reader.ReadToEndAsync();
+            }
+
+            // 第一步：匹配 _aspenVersion 的值
+            var versionMatch = System.Text.RegularExpressions.Regex.Match(
+                fileContent,
+                @"DSET\s+RUN-STATUS\s+VERS\s+@VERS\s*\(\s*""([^""]+)""",
+                System.Text.RegularExpressions.RegexOptions.Singleline
+            );
+
+            if (!versionMatch.Success)
+            {
+                _message = "未找到 _aspenVersion 值，无法进行修改。";
+                return;
+            }
+
+            string currentAspenVersion = versionMatch.Groups[1].Value; // 提取当前 _aspenVersion 值
+            Console.WriteLine($"匹配到的 _aspenVersion 值: {currentAspenVersion}");
+
+            // 第二步：在全文中匹配并修改 _aspenVersion 值
+            int matchCount = 0;
+            fileContent = System.Text.RegularExpressions.Regex.Replace(
+                fileContent,
+                $@"""{currentAspenVersion}""", // 匹配全文中当前 _aspenVersion 的值
+                match =>
+                {
+                    matchCount++;
+                    return $"\"{targetAspenVersion}\""; // 替换为目标版本值
+                }
+            );
+
+            // 生成新的文件名
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var newFileName = $"changed_{timestamp}.bkp";
+            var newFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpDownload", newFileName);
+
+            // 确保目录存在
+            Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpDownload"));
+
+            // 保存修改后的文件
+            await using (var writer = new StreamWriter(newFilePath, false, System.Text.Encoding.UTF8))
+            {
+                await writer.WriteAsync(fileContent);
+            }
+
+            // 输出匹配和修改次数到页面和控制台
+            _message = $"文件已成功保存为: {newFileName}，匹配并修改了 {matchCount} 次。";
+            Console.WriteLine($"修改后的文件已保存到: {newFilePath}");
+            Console.WriteLine($"匹配并修改了 {matchCount} 次。");
+        }
+        catch (Exception ex)
+        {
+            _message = $"保存修改后的文件时出错: {ex.Message}";
+        }
+    }
+
+    private void UpdateAspenVersionDetails()
+    {
+        switch (_aspenVersion)
+        {
+            case "40.0":
+                _aspenVersionDescription = "上传的文件Aspen版本为V14";
+                _availableVersions = new List<string> { "V12", "V11", "V9" };
+                break;
+            case "38.0":
+                _aspenVersionDescription = "上传的文件Aspen版本为V12";
+                _availableVersions = new List<string> { "V11", "V9" };
+                break;
+            case "37.0":
+                _aspenVersionDescription = "上传的文件Aspen版本为V11";
+                _availableVersions = new List<string> { "V9" };
+                break;
+            case "36.0":
+                _aspenVersionDescription = "上传的文件Aspen版本为V9，无法转换更低版本";
+                _availableVersions = new List<string>();
+                break;
+            default:
+                _aspenVersionDescription = "未知的Aspen版本";
+                _availableVersions = new List<string>();
+                break;
+        }
+    }
+}
