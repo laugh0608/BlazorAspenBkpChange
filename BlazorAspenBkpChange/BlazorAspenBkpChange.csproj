@@ -8,6 +8,13 @@
 
   <ItemGroup>
     <PackageReference Include="BootstrapBlazor.FontAwesome" Version="9.0.2" />
+    <PackageReference Include="ServiceStack.Common" Version="8.7.2" />
   </ItemGroup>
+
+	<ItemGroup>
+		<Content Update="wwwroot/bkpChanged\**\*">
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+		</Content>
+	</ItemGroup>
 
 </Project>
