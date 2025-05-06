@@ -1,83 +1,105 @@
-﻿@page "/aspenChange"  
-@rendermode InteractiveServer  
+﻿@page "/aspenChange"
+@rendermode InteractiveServer
 @inject IJSRuntime JS
 
-<PageTitle>AspenBkpChange</PageTitle>  
+<PageTitle>AspenBkpChange</PageTitle>
 
-<h2>BlazorAspenBkpChange</h2>  
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="text-primary">BlazorAspenBkpChange</h2>
+            <p class="text-muted">请上传 bkp 文件开始进行版本转换。</p>
+            <ul class="list-unstyled">
+                <li>仅支持高版本转换为低版本。</li>
+                <li>文件大小限制为 <strong>10 MB</strong>。</li>
+                <li>服务器不保存历史文件，请转化完成后立即下载新文件。</li>
+            </ul>
+            <div class="alert alert-warning">
+                <strong>注意：</strong>
+                <p>由于 PURE 数据库限制，不保证完全转换，</p>
+                <p>只保证转换完成之后可以打开，可能会弹出丢失数据库的警告，</p>
+                <p>运行之后可能会直接报错，但是可以查看所有模块的设置参数。</p>
+            </div>
+        </div>
+    </div>
 
-<p>请上传 bkp 文件开始进行版本转换。</p>  
-<p>仅支持高版本转换为低版本。</p>
-<p>文件大小限制为10 MB。</p>
-<p>服务器不保存历史文件，请转化完成后立即下载新文件。</p>
-<p>注意：</p>
-<p>由于 PURE 数据库限制，不保证完全转换，</p>
-<p>只保证转换完成之后可以打开，可能会弹出丢失数据库的警告，</p>
-<p>运行之后可能会直接报错，但是可以查看所有模块的设置参数。</p>
-
-@if (!string.IsNullOrEmpty(_message))  
-{  
-    <div class="alert alert-info">@_message</div>  
-}  
-
-<InputFile OnChange="HandleFileSelected" multiple />  
-
-@if (_uploadedFiles.Any())  
-{  
-    <h4>已上传文件:</h4>  
-    <ul>  
-        @foreach (var file in _uploadedFiles)  
-        {  
-            <li>@file</li>
-        }  
-    </ul>  
-}  
-
-@* @if (!string.IsNullOrEmpty(_firstLine))  
-{  
-    <h4>文件第一行内容:</h4>  
-    <p>@_firstLine</p>  
-} *@
-
-@if (!string.IsNullOrEmpty(_formattedContent))  
-{  
-    <h4>格式化匹配内容:</h4>  
-    <p>文件版本号: @_aspenVersion</p>  
-    <p>系统版本: @_systemVersion</p>  
-    <p>创建人: @_username</p>
-    <p>计算机名: @_computerName</p>
-    <p>创建时间: @_creatTime</p>
-    <p>使用的主数据库: @_mainDatabase</p>
-    <p>Aspen版本描述: @_aspenVersionDescription</p>
-
-    @if (_availableVersions.Any())
+    @if (!string.IsNullOrEmpty(_message))
     {
-        <label for="versionSelect">选择目标版本:</label>
-        <select id="versionSelect" @bind="_selectedVersion">
-            @foreach (var version in _availableVersions)
-            {
-                <option value="@version">@version</option>
-            }
-        </select>
-        <button @onclick="SaveModifiedFile">保存修改后的文件</button>
-    }
-    else
-    {
-        <p>无法转换为更低版本。</p>
+        <div class="alert alert-info mt-3">@_message</div>
     }
 
-    @if (!string.IsNullOrEmpty(_modifiedFilePath))
+    <div class="card shadow-sm mt-3">
+        <div class="card-body">
+            <h4 class="text-secondary">上传文件</h4>
+            <InputFile OnChange="HandleFileSelected" multiple class="form-control" />
+        </div>
+    </div>
+
+    @if (_uploadedFiles.Any())
     {
-        @* <a href="@_apiFilePath" download>
-            使用API下载修改后的文件
-        </a> *@
-
-        <button @onclick="DownloadFileFromURL">
-            下载转换后的文件
-        </button>
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <h4 class="text-secondary">已上传文件:</h4>
+                <ul class="list-group">
+                    @foreach (var file in _uploadedFiles)
+                    {
+                        <li class="list-group-item">@file</li>
+                    }
+                </ul>
+            </div>
+        </div>
     }
-}  
 
-@code {  
-    
+    @if (!string.IsNullOrEmpty(_formattedContent))
+    {
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <h4 class="text-secondary">格式化匹配内容:</h4>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>文件版本号:</strong> @_aspenVersion</p>
+                        <p><strong>系统版本:</strong> @_systemVersion</p>
+                        <p><strong>创建人:</strong> @_username</p>
+                        <p><strong>计算机名:</strong> @_computerName</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>创建时间:</strong> @_creatTime</p>
+                        <p><strong>使用的主数据库:</strong> @_mainDatabase</p>
+                        <p><strong>Aspen版本描述:</strong> @_aspenVersionDescription</p>
+                    </div>
+                </div>
+
+                @if (_availableVersions.Any())
+                {
+                    <div class="mt-3">
+                        <label for="versionSelect" class="form-label">选择目标版本:</label>
+                        <select id="versionSelect" @bind="_selectedVersion" class="form-select">
+                            @foreach (var version in _availableVersions)
+                            {
+                                <option value="@version">@version</option>
+                            }
+                        </select>
+                        <button class="btn btn-primary mt-2" @onclick="SaveModifiedFile">保存修改后的文件</button>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-danger">无法转换为更低版本。</p>
+                }
+
+                @if (!string.IsNullOrEmpty(_modifiedFilePath))
+                {
+                    <div class="mt-3">
+                        <button class="btn btn-success" @onclick="DownloadFileFromURL">
+                            下载转换后的文件
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+
 }
