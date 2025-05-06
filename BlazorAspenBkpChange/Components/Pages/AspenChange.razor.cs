@@ -189,6 +189,9 @@ namespace BlazorAspenBkpChange.Components.Pages
             }
 
             _message = "文件上传成功！";
+
+            // 上传文件后清理旧文件
+            EnsureLatestFiles(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpUploads"), 10);
         }
 
         private async Task SaveModifiedFile()
@@ -334,6 +337,9 @@ namespace BlazorAspenBkpChange.Components.Pages
             {
                 _message = $"保存修改后的文件时出错: {ex.Message}";
             }
+
+            // 保存修改后的文件后清理旧文件
+            EnsureLatestFiles(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/bkpChanged"), 10);
         }
 
         // 下载文件的 JavaScript 函数
@@ -378,6 +384,34 @@ namespace BlazorAspenBkpChange.Components.Pages
                     _aspenVersionDescription = "未知的Aspen版本";
                     _availableVersions = new List<string>();
                     break;
+            }
+        }
+
+        // 确保删除多余的文件，保留最新的 maxFiles 个文件
+        // 默认保留 10 个文件
+        private void EnsureLatestFiles(string directoryPath, int maxFiles)
+        {
+            if (!Directory.Exists(directoryPath))
+            {
+                return;
+            }
+
+            var files = new DirectoryInfo(directoryPath)
+                .GetFiles()
+                .OrderByDescending(f => f.CreationTime)
+                .ToList();
+
+            // 删除多余的文件
+            for (int i = maxFiles; i < files.Count; i++)
+            {
+                try
+                {
+                    files[i].Delete();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"无法删除文件 {files[i].Name}: {ex.Message}");
+                }
             }
         }
     }
